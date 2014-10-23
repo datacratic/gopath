@@ -5,6 +5,7 @@ package path
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"reflect"
 	"strconv"
 	"strings"
@@ -166,7 +167,7 @@ func apply(obj reflect.Value, head, tail P, fn applyFn) (cont bool, err error) {
 	}
 
 	if obj.Kind() == reflect.Invalid {
-		panic("invalid kind in path")
+		log.Panic("invalid kind in path")
 	}
 
 	switch obj.Kind() {
