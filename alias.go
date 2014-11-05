@@ -31,7 +31,7 @@ func JSONAliases(typ reflect.Type) map[string]string {
 func jsonAliases(typ reflect.Type, aliases map[string]string) {
 	switch typ.Kind() {
 
-	case reflect.Interface, reflect.Ptr, reflect.Map, reflect.Array, reflect.Slice:
+	case reflect.Chan, reflect.Ptr, reflect.Map, reflect.Array, reflect.Slice:
 		jsonAliases(typ.Elem(), aliases)
 
 	case reflect.Struct:
