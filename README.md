@@ -1,4 +1,4 @@
-# goset #
+# gopath #
 
 String pathing utility for golang
 
