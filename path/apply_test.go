@@ -4,69 +4,10 @@ package path
 
 import (
 	"fmt"
-	"reflect"
 	"sort"
 	"strconv"
 	"testing"
 )
-
-func getFail(t *testing.T, title string, path string, obj interface{}) {
-	_, err := New(path).Get(obj)
-	if err == nil {
-		t.Errorf("FAIL(%s): %s -> expected failure", title, path)
-	}
-}
-
-func getInterface(t *testing.T, title string, path string, obj interface{}) (result interface{}) {
-	result, err := New(path).Get(obj)
-	if err != nil {
-		t.Errorf("FAIL(%s): %s -> %s", title, path, err)
-	}
-	return
-}
-
-func getInt(t *testing.T, title string, path string, obj interface{}, exp int) {
-	result := getInterface(t, title, path, obj)
-	if result != nil {
-		if val := result.(int); val != exp {
-			t.Errorf("FAIL(%s): %s -> exp %d got %d", title, path, exp, val)
-		}
-	}
-}
-
-func getAllInterface(t *testing.T, title string, path string, obj interface{}) (result []interface{}) {
-	result, err := New(path).GetAll(obj)
-	if err != nil {
-		t.Errorf("FAIL(%s): %s -> %s", title, path, err)
-	}
-	return
-}
-
-func getAllInt(t *testing.T, title string, path string, obj interface{}, exp []int) {
-	result := getAllInterface(t, title, path, obj)
-	if result == nil {
-		return
-	}
-
-	if len(result) != len(exp) {
-		t.Errorf("FAIL(%s): %s -> invalid length %d < %d", title, path, len(result), len(exp))
-		return
-	}
-
-	var intResult []int
-	for _, val := range result {
-		intResult = append(intResult, val.(int))
-	}
-
-	sort.Ints(exp)
-	sort.Ints(intResult)
-
-	for i := 0; i < len(intResult); i++ {
-		if intResult[i] != exp[i] {
-			t.Errorf("FAIL(%s): %s -> exp %d got %d", title, path, exp[i], intResult)
-		}
-	}
-}
 
 type Interface interface {
 	B() int
@@ -154,31 +95,62 @@ func TestPathGet(t *testing.T) {
 	getFail(t, "compound", "W.0.A", compound)
 }
 
-func translate(t *testing.T, aliases map[string]string, old, exp string) {
-	path := New(old).Translate(aliases).String()
-	if path != exp {
-		t.Errorf("FAIL: %s -> %s != %s ", old, path, exp)
+func getFail(t *testing.T, title string, path string, obj interface{}) {
+	_, err := New(path).Get(obj)
+	if err == nil {
+		t.Errorf("FAIL(%s): %s -> expected failure", title, path)
 	}
 }
 
-func TestPathTranslate(t *testing.T) {
-	obj := struct {
-		A *struct {
-			B int `json:"bob"`
-		} `json:"alice,omitempty"`
-		C []*struct {
-			D map[string]*struct {
-				E int `json:"eve"`
-			} `json:"dan"`
-		} `json:"charlie"`
-	}{}
+func getInterface(t *testing.T, title string, path string, obj interface{}) (result interface{}) {
+	result, err := New(path).Get(obj)
+	if err != nil {
+		t.Errorf("FAIL(%s): %s -> %s", title, path, err)
+	}
+	return
+}
 
-	aliases := JSONAliases(reflect.TypeOf(obj))
+func getInt(t *testing.T, title string, path string, obj interface{}, exp int) {
+	result := getInterface(t, title, path, obj)
+	if result != nil {
+		if val := result.(int); val != exp {
+			t.Errorf("FAIL(%s): %s -> exp %d got %d", title, path, exp, val)
+		}
+	}
+}
 
-	translate(t, aliases, "alice.bob", "A.B")
-	translate(t, aliases, "charlie.dan.eve", "C.D.E")
-	translate(t, aliases, "charlie.*.eve", "C.*.E")
-	translate(t, aliases, "zebra.alice.wall", "zebra.A.wall")
+func getAllInterface(t *testing.T, title string, path string, obj interface{}) (result []interface{}) {
+	result, err := New(path).GetAll(obj)
+	if err != nil {
+		t.Errorf("FAIL(%s): %s -> %s", title, path, err)
+	}
+	return
+}
+
+func getAllInt(t *testing.T, title string, path string, obj interface{}, exp []int) {
+	result := getAllInterface(t, title, path, obj)
+	if result == nil {
+		return
+	}
+
+	if len(result) != len(exp) {
+		t.Errorf("FAIL(%s): %s -> invalid length %d < %d", title, path, len(result), len(exp))
+		return
+	}
+
+	var intResult []int
+	for _, val := range result {
+		intResult = append(intResult, val.(int))
+	}
+
+	sort.Ints(exp)
+	sort.Ints(intResult)
+
+	for i := 0; i < len(intResult); i++ {
+		if intResult[i] != exp[i] {
+			t.Errorf("FAIL(%s): %s -> exp %d got %d", title, path, exp[i], intResult)
+		}
+	}
 }
 
 func BenchmarkPathNewEmpty(b *testing.B) {
