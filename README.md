@@ -21,9 +21,10 @@ Note that the usual go utilities will work just fine but we require that all
 commits pass the full suite of tests and static analysis tools.
 
 
-## Examples ##
+## Documentation ##
 
-Usage examples are available in the following [test suite](example_test.go).
+documentation is available [here](https://godoc.org/github.com/datacratic/gopath/path).
+Usage examples are available in this [test suite](path/example_test.go).
 
 
 ## License ##

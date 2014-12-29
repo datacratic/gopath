@@ -16,10 +16,13 @@ Pointers will automatically be dereferenced when accessed. Slices and Arrays can
 only be traversed using unsigned integers as path components. Only maps that use
 strings as keys can be traversed. Functions must take no arguments and return a
 single value and an optional error value. The returned value will be used to
-dereference the rest of the path. Channels are not supported at all.
+dereference the rest of the path.
 
 A wildcard component, denoted by the '*' character, is also available when
 using the GetAll to return all the values that match the path pattern.
+
+For channels a wildcard component can be provided to read all values until the
+channel is closed or a count which to indicate the number of values to read.
 
 A translation mechanism is available to convert JSON paths into paths usable by
 gopath. This is accomplished by creating an alias table using the JSONAliases

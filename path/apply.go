@@ -4,192 +4,204 @@ package path
 
 import (
 	"fmt"
-	"log"
 	"reflect"
 	"strconv"
 )
 
-type applyFn func(P, reflect.Value) bool
+// Apply applies the given context to the object using the path.
+func (path P) Apply(obj interface{}, ctx *Context) (err error) {
+	return apply(reflect.ValueOf(obj), P{}, path, ctx)
+}
 
-func applyToPtr(obj reflect.Value, head P, mid string, tail P, fn applyFn) (cont bool, err error) {
-	result := obj.MethodByName(mid)
-	if result.Kind() != reflect.Invalid {
-		cont, err = applyToFunc(result, head, mid, tail, fn)
-		return
+func apply(obj reflect.Value, head, tail P, ctx *Context) (err error) {
+	if err := ensure(head, tail, obj, ctx); err != nil {
+		return err
 	}
 
-	cont, err = apply(obj.Elem(), head, append(P{mid}, tail...), fn)
+	ctx.push(obj)
+
+	if len(tail) == 0 {
+		var cont bool
+		cont, err = ctx.Fn(head, ctx)
+		ctx.stop = !cont
+
+	} else {
+		switch obj.Kind() {
+
+		case reflect.Interface, reflect.Ptr:
+			err = applyToPtr(obj, head, tail, ctx)
+
+		case reflect.Struct:
+			err = applyToStruct(obj, head, tail[0], tail[1:], ctx)
+
+		case reflect.Array, reflect.Slice:
+			err = applyToSlice(obj, head, tail[0], tail[1:], ctx)
+
+		case reflect.Map:
+			err = applyToMap(obj, head, tail[0], tail[1:], ctx)
+
+		case reflect.Func:
+			err = applyToFunc(obj, head, tail[0], tail[1:], ctx)
+
+		case reflect.Chan:
+			err = applyToChan(obj, head, tail[0], tail[1:], ctx)
+
+		default:
+			err = fmt.Errorf("invalid kind '%s' in at '%s'", obj, head)
+		}
+
+	}
+
+	ctx.pop()
 	return
 }
 
-func applyToFunc(obj reflect.Value, head P, mid string, tail P, fn applyFn) (cont bool, err error) {
-	t := obj.Type()
+func applyToPtr(obj reflect.Value, head, tail P, ctx *Context) error {
 
-	if t.NumIn() != 0 {
-		err = fmt.Errorf("Invalid arguments for func %s: %s", mid, t)
-		return
+	if result := obj.MethodByName(tail[0]); result.Kind() != reflect.Invalid {
+		return applyToFunc(result, head, tail[0], tail[1:], ctx)
+	}
+
+	return apply(obj.Elem(), head, tail, ctx)
+}
+
+func applyToFunc(obj reflect.Value, head P, mid string, tail P, ctx *Context) error {
+	typ := obj.Type()
+
+	if typ.NumIn() != 0 {
+		return fmt.Errorf("too many arguments %d > 0 for function '%s' at '%s'", typ.NumIn(), mid, head)
 	}
 
 	var result reflect.Value
 
-	if t.NumOut() == 1 {
+	if typ.NumOut() == 1 {
 		result = obj.Call([]reflect.Value{})[0]
 
-	} else if t.NumOut() == 2 && t.Out(1) == reflect.TypeOf((*error)(nil)).Elem() {
+	} else if typ.NumOut() == 2 && typ.Out(1) == reflect.TypeOf((*error)(nil)).Elem() {
 		ret := obj.Call([]reflect.Value{})
 
 		if !ret[1].IsNil() {
-			err = ret[1].Interface().(error)
-			return
+			return ret[1].Interface().(error)
 		}
 
 		result = ret[0]
 
 	} else {
-		err = fmt.Errorf("Invalid return for func %s: %s", mid, t)
-		return
+		return fmt.Errorf("invalid return signature for function '%s' at '%s'", mid, head)
 	}
 
-	cont, err = apply(result, append(head, mid), tail, fn)
-	return
+	return apply(result, append(head, mid), tail, ctx)
 }
 
-func applyToStruct(obj reflect.Value, head P, mid string, tail P, fn applyFn) (cont bool, err error) {
+func applyToStruct(obj reflect.Value, head P, mid string, tail P, ctx *Context) error {
 	if mid != "*" {
 		result := obj.FieldByName(mid)
+
 		if result.Kind() == reflect.Invalid {
 			result = obj.MethodByName(mid)
 		}
 
 		if result.Kind() == reflect.Invalid {
-			err = fmt.Errorf("no field named %s in struct", mid)
-			return
+			return fmt.Errorf("no field '%s' in type '%s' at '%s'", mid, obj.Type(), head)
 		}
 
-		cont, err = apply(result, append(head, mid), tail, fn)
-		return
+		return apply(result, append(head, mid), tail, ctx)
 	}
 
-	t := obj.Type()
+	typ := obj.Type()
 
-	for i := 0; i < t.NumField(); i++ {
-		cont, err = applyToStruct(obj, head, t.Field(i).Name, tail, fn)
-		if !cont {
-			break
+	for i := 0; i < typ.NumField() && !ctx.stop; i++ {
+		if err := applyToStruct(obj, head, typ.Field(i).Name, tail, ctx); err != nil && err != ErrMissing {
+			return err
 		}
 	}
 
-	return
+	return nil
 }
 
-func applyToSlice(obj reflect.Value, head P, mid string, tail P, fn applyFn) (cont bool, err error) {
+func applyToSlice(obj reflect.Value, head P, mid string, tail P, ctx *Context) error {
 	if mid != "*" {
 		index, err := strconv.ParseInt(mid, 10, 32)
 		if err != nil {
-			return cont, err
+			return fmt.Errorf("invalid index '%s' at '%s' -> %s", mid, head, err)
 		}
 
-		if int(index) >= obj.Len() || int(index) < 0 {
-			err = fmt.Errorf("index %d >= slice len %d", index, obj.Len())
-			return cont, err
+		if int(index) < 0 {
+			return fmt.Errorf("invalid index %d < 0 at '%s'", index, head)
 		}
 
-		cont, err = apply(obj.Index(int(index)), append(head, mid), tail, fn)
-		return cont, err
+		result, err := ensureSliceIndex(head, mid, obj, int(index), ctx)
+		if err != nil {
+			return err
+		}
+
+		return apply(result, append(head, mid), tail, ctx)
 	}
 
-	for i := 0; i < obj.Len(); i++ {
-		cont, err = applyToSlice(obj, head, strconv.Itoa(i), tail, fn)
-		if !cont {
-			break
+	for i := 0; i < obj.Len() && !ctx.stop; i++ {
+		if err := applyToSlice(obj, head, strconv.Itoa(i), tail, ctx); err != nil && err != ErrMissing {
+			return err
 		}
 	}
 
-	return
+	return nil
 }
 
-func applyToMap(obj reflect.Value, head P, mid string, tail P, fn applyFn) (cont bool, err error) {
+func applyToMap(obj reflect.Value, head P, mid string, tail P, ctx *Context) error {
 	if mid != "*" {
-		result := obj.MapIndex(reflect.ValueOf(mid))
-		if result.Kind() == reflect.Invalid {
-			err = fmt.Errorf("map doesn't contain key %s", mid)
-			return
+		result, err := ensureMapKey(head, mid, obj, reflect.ValueOf(mid), ctx)
+		if err != nil {
+			return err
 		}
-
-		cont, err = apply(result, append(head, mid), tail, fn)
-		return
+		return apply(result, append(head, mid), tail, ctx)
 	}
 
 	if key := obj.Type().Key(); key.Kind() != reflect.String {
-		err = fmt.Errorf("Unsupported key type in map: %s", key)
-		return
+		return fmt.Errorf("unsupported key type '%s' for map '%s' at '%s'", key, mid, head)
 	}
 
 	keys := obj.MapKeys()
-	for _, key := range keys {
-		cont, err = applyToMap(obj, head, key.String(), tail, fn)
-		if !cont {
-			break
+
+	for i := 0; i < len(keys) && !ctx.stop; i++ {
+		if err := applyToMap(obj, head, keys[i].String(), tail, ctx); err != nil && err != ErrMissing {
+			return err
 		}
 	}
 
-	return
+	return nil
 }
 
-func apply(obj reflect.Value, head, tail P, fn applyFn) (cont bool, err error) {
-	if len(tail) == 0 {
-		cont = fn(head, obj)
-		return
+func applyToChan(obj reflect.Value, head P, mid string, tail P, ctx *Context) error {
+	if dir := obj.Type().ChanDir(); dir != reflect.RecvDir && dir != reflect.BothDir {
+		return fmt.Errorf("invalid channel direction '%s' at '%s'", dir, head)
 	}
 
-	if obj.Kind() == reflect.Invalid {
-		log.Panic("invalid kind in path")
-	}
+	switch mid {
 
-	switch obj.Kind() {
+	case "1":
+		result, ok := obj.Recv()
+		if !ok {
+			return ErrMissing
+		}
 
-	case reflect.Interface, reflect.Ptr:
-		cont, err = applyToPtr(obj, head, tail[0], tail[1:], fn)
+		return apply(result, append(head, mid), tail, ctx)
 
-	case reflect.Struct:
-		cont, err = applyToStruct(obj, head, tail[0], tail[1:], fn)
+	case "*":
+		for !ctx.stop {
+			result, ok := obj.Recv()
+			if !ok {
+				return nil
+			}
 
-	case reflect.Array, reflect.Slice:
-		cont, err = applyToSlice(obj, head, tail[0], tail[1:], fn)
+			if err := apply(result, append(head, mid), tail, ctx); err != nil && err != ErrMissing {
+				return err
+			}
+		}
 
-	case reflect.Map:
-		cont, err = applyToMap(obj, head, tail[0], tail[1:], fn)
+		return nil
 
 	default:
-		err = fmt.Errorf("premature end of path")
+		return fmt.Errorf("invalid channel component '%s' at '%s'", mid, head)
+
 	}
-
-	return
-}
-
-// Apply applies to given function to all the element that match the path int he
-// given obj.
-func (path P) Apply(obj interface{}, fn func(P, interface{}) bool) (err error) {
-	_, err = apply(reflect.ValueOf(obj), P{}, path, func(path P, value reflect.Value) bool {
-		return fn(path, value.Interface())
-	})
-	return
-}
-
-// Get returns the first element that matches the path in the given object.
-func (path P) Get(obj interface{}) (result interface{}, err error) {
-	err = path.Apply(obj, func(_ P, value interface{}) bool {
-		result = value
-		return false
-	})
-	return
-}
-
-// GetAll returns all the elements that matches the path in the given object.
-func (path P) GetAll(obj interface{}) (result []interface{}, err error) {
-	err = path.Apply(obj, func(_ P, value interface{}) bool {
-		result = append(result, value)
-		return true
-	})
-	return
 }

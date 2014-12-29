@@ -13,23 +13,23 @@ type Interface interface {
 	B() int
 }
 
-type Struct struct {
-	A int `json:"alice"`
-	Z int `json:"zebra"`
+type GetStruct struct {
+	A int
+	Z int
 }
 
-func (s *Struct) B() int {
+func (s *GetStruct) B() int {
 	return s.A
 }
 
-func (s *Struct) C() (int, error) {
+func (s *GetStruct) C() (int, error) {
 	if s.A == 0 {
 		return 0, fmt.Errorf("blah")
 	}
 	return s.A, nil
 }
 
-func TestPathGet(t *testing.T) {
+func TestGet(t *testing.T) {
 	mapVal := map[string]int{
 		"A": 1,
 		"B": 10,
@@ -37,12 +37,12 @@ func TestPathGet(t *testing.T) {
 	getInt(t, "map", "A", mapVal, 1)
 	getInt(t, "map", "B", mapVal, 10)
 	getAllInt(t, "map", "*", mapVal, []int{1, 10})
-	getFail(t, "map", "C", mapVal)
+	getMissing(t, "map", "C", mapVal)
 	getFail(t, "map", "A.B", mapVal)
 
 	getInt(t, "mapPtr", "A", &mapVal, 1)
 	getAllInt(t, "mapPtr", "*", &mapVal, []int{1, 10})
-	getFail(t, "mapPtr", "C", &mapVal)
+	getMissing(t, "mapPtr", "C", &mapVal)
 
 	arrayVal := []int{1, 10}
 	getInt(t, "array", "0", arrayVal, 1)
@@ -51,10 +51,10 @@ func TestPathGet(t *testing.T) {
 	getAllInt(t, "array", "*", arrayVal, []int{1, 10})
 	getFail(t, "array", "A", arrayVal)
 	getFail(t, "array", "-1", arrayVal)
-	getFail(t, "array", "2", arrayVal)
+	getMissing(t, "array", "2", arrayVal)
 	getFail(t, "array", "1.A", arrayVal)
 
-	structVal := Struct{100, 1000}
+	structVal := GetStruct{100, 1000}
 	getInt(t, "struct", "A", structVal, 100)
 	getAllInt(t, "struct", "*", structVal, []int{100, 1000})
 	getFail(t, "struct", "B", structVal)
@@ -66,19 +66,20 @@ func TestPathGet(t *testing.T) {
 	getInt(t, "structPtr", "B", &structVal, 100)
 	getInt(t, "structPtr", "C", &structVal, 100)
 	getAllInt(t, "structPtr", "*", &structVal, []int{100, 1000})
-	getFail(t, "structPtr", "C", &Struct{0, 0})
+	getFail(t, "structPtr", "C", &GetStruct{0, 0})
 	getFail(t, "structPtr", "D", &structVal)
+	getMissing(t, "structPtr", "A", (*GetStruct)(nil))
 	getFail(t, "struct", "A.B", structVal)
 
 	var interfaceVal Interface
-	interfaceVal = &Struct{10, 100}
+	interfaceVal = &GetStruct{10, 100}
 	getInt(t, "interface", "B", interfaceVal, 10)
 	getAllInt(t, "interface", "*", interfaceVal, []int{10, 100})
 
-	compound := map[string][]*Struct{
-		"X": []*Struct{&Struct{1, 0}},
-		"Y": []*Struct{&Struct{2, 0}, &Struct{20, 0}},
-		"Z": []*Struct{&Struct{3, 0}, &Struct{30, 0}, &Struct{300, 0}},
+	compound := map[string][]*GetStruct{
+		"X": []*GetStruct{&GetStruct{1, 0}},
+		"Y": []*GetStruct{&GetStruct{2, 0}, &GetStruct{20, 0}},
+		"Z": []*GetStruct{&GetStruct{3, 0}, &GetStruct{30, 0}, &GetStruct{300, 0}},
 	}
 
 	getInt(t, "compound", "X.0.A", compound, 1)
@@ -90,15 +91,30 @@ func TestPathGet(t *testing.T) {
 	getInterface(t, "compound", "Y", compound)
 	getInterface(t, "compound", "Z.2", compound)
 
-	getFail(t, "compound", "X.1.A", compound)
+	getMissing(t, "compound", "X.1.A", compound)
 	getFail(t, "compound", "Y.1.D", compound)
-	getFail(t, "compound", "W.0.A", compound)
+	getMissing(t, "compound", "W.0.A", compound)
 }
 
 func getFail(t *testing.T, title string, path string, obj interface{}) {
 	_, err := New(path).Get(obj)
+
 	if err == nil {
 		t.Errorf("FAIL(%s): %s -> expected failure", title, path)
+
+	} else if err == ErrMissing {
+		t.Errorf("FAIL(%s): %s -> expected failure got Missing", title, path)
+	}
+}
+
+func getMissing(t *testing.T, title string, path string, obj interface{}) {
+	_, err := New(path).Get(obj)
+
+	if err == nil {
+		t.Errorf("FAIL(%s): %s -> expected Missing", title, path)
+
+	} else if err != ErrMissing {
+		t.Errorf("FAIL(%s): %s -> expected error: %s", title, path, err)
 	}
 }
 
@@ -153,28 +169,28 @@ func getAllInt(t *testing.T, title string, path string, obj interface{}, exp []i
 	}
 }
 
-func BenchmarkPathNewEmpty(b *testing.B) {
+func BenchmarkNewEmpty(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		New("")
 	}
 }
 
-func BenchmarkPathNewSimple(b *testing.B) {
+func BenchmarkNewSimple(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		New("A")
 	}
 }
 
-func BenchmarkPathNewComplex(b *testing.B) {
+func BenchmarkNewComplex(b *testing.B) {
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		New("Aasd.*.BJDS.*.*.*.ADJK")
 	}
 }
 
-func BenchmarkPathGetMap(b *testing.B) {
+func BenchmarkGetMap(b *testing.B) {
 	n := 26
 	obj := make(map[string]int)
 	path := make([]P, 26)
@@ -191,7 +207,7 @@ func BenchmarkPathGetMap(b *testing.B) {
 	}
 }
 
-func BenchmarkPathGetAllMap(b *testing.B) {
+func BenchmarkGetAllMap(b *testing.B) {
 	n := 1000
 	obj := make(map[string]int)
 	path := New("*")
@@ -206,7 +222,7 @@ func BenchmarkPathGetAllMap(b *testing.B) {
 	}
 }
 
-func BenchmarkPathGetArray(b *testing.B) {
+func BenchmarkGetArray(b *testing.B) {
 	n := 100
 	obj := make([]int, n)
 	path := make([]P, n)
@@ -222,7 +238,7 @@ func BenchmarkPathGetArray(b *testing.B) {
 	}
 }
 
-func BenchmarkPathGetAllArray(b *testing.B) {
+func BenchmarkGetAllArray(b *testing.B) {
 	obj := make([]int, b.N)
 	path := New("*")
 
@@ -234,13 +250,13 @@ func BenchmarkPathGetAllArray(b *testing.B) {
 	path.GetAll(obj)
 }
 
-type BenchStruct struct {
+type BenchGetStruct struct {
 	A, B, C, D, E, F, G, H, I, J, K, L, M, N, O, P, Q, R, S, T, U, V, W, X, Y, Z int
 }
 
-func BenchmarkPathGetStruct(b *testing.B) {
+func BenchmarkGetGetStruct(b *testing.B) {
 	n := 26
-	obj := BenchStruct{}
+	obj := BenchGetStruct{}
 	path := make([]P, 26)
 
 	for i := 0; i < n; i++ {
@@ -253,8 +269,8 @@ func BenchmarkPathGetStruct(b *testing.B) {
 	}
 }
 
-func BenchmarkPathGetAllStruct(b *testing.B) {
-	obj := BenchStruct{}
+func BenchmarkGetAllGetStruct(b *testing.B) {
+	obj := BenchGetStruct{}
 	path := New("*")
 
 	b.ResetTimer()
@@ -263,9 +279,9 @@ func BenchmarkPathGetAllStruct(b *testing.B) {
 	}
 }
 
-func BenchmarkPathGetStructPtr(b *testing.B) {
+func BenchmarkGetGetStructPtr(b *testing.B) {
 	n := 26
-	obj := &BenchStruct{}
+	obj := &BenchGetStruct{}
 	path := make([]P, 26)
 
 	for i := 0; i < n; i++ {
@@ -278,8 +294,8 @@ func BenchmarkPathGetStructPtr(b *testing.B) {
 	}
 }
 
-func BenchmarkPathGetAllStructPtr(b *testing.B) {
-	obj := &BenchStruct{}
+func BenchmarkGetAllGetStructPtr(b *testing.B) {
+	obj := &BenchGetStruct{}
 	path := New("*")
 
 	b.ResetTimer()
