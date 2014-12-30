@@ -10,7 +10,8 @@ import (
 )
 
 type Object struct {
-	Data map[string]interface{} `json:"blob"`
+	Data  map[string]interface{} `json:"blob"`
+	Other map[string][]int
 }
 
 func Example_Path() {
@@ -35,6 +36,11 @@ func Example_Path() {
 	array, err := path.New("Data.blah.*").GetAll(obj)
 	fmt.Printf("get(Data.blah.*): %s, %v\n", array, err)
 
+	// Paths can also be used to modify and existing structure by setting
+	// fields, adding new keys in maps, expanding slices, etc.
+	err = path.New("Other.piano.4").Set(obj, 123)
+	fmt.Printf("set(Other.piano.4): %d, %v\n", obj.Other["piano"][4], err)
+
 	// To use JSON paths we first need to create an alias table of the type we
 	// which to access with a JSON path.
 	aliases := path.JSONAliases(reflect.TypeOf(obj))
@@ -48,5 +54,6 @@ func Example_Path() {
 	// get(Data.foo): bar, <nil>
 	// get(Data.blah.0): bleh, <nil>
 	// get(Data.blah.*): [bleh bloh], <nil>
+	// set(Other.piano.4): 123, <nil>
 	// blob.foo -> Data.foo
 }

@@ -23,7 +23,7 @@ commits pass the full suite of tests and static analysis tools.
 
 ## Documentation ##
 
-documentation is available [here](https://godoc.org/github.com/datacratic/gopath/path).
+Documentation is available [here](https://godoc.org/github.com/datacratic/gopath/path).
 Usage examples are available in this [test suite](path/example_test.go).
 
 
