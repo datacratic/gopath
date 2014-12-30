@@ -96,6 +96,20 @@ func TestGet(t *testing.T) {
 	getMissing(t, "compound", "W.0.A", compound)
 }
 
+func TestGetChan(t *testing.T) {
+	var obj struct{ C chan int }
+	obj.C = make(chan int, 8)
+
+	for i := 0; i < 8; i++ {
+		obj.C <- i
+	}
+	close(obj.C)
+
+	getInt(t, "chan", "C.1", &obj, 0)
+	getInt(t, "chan", "C.1", &obj, 1)
+	getAllInt(t, "chan", "C.*", &obj, []int{2, 3, 4, 5, 6, 7})
+}
+
 func getFail(t *testing.T, title string, path string, obj interface{}) {
 	_, err := New(path).Get(obj)
 
