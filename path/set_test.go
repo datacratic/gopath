@@ -11,15 +11,22 @@ type SetStruct struct {
 	I int
 	S GetStruct
 	A []int
+	U Interface
+	V interface{}
 
 	PI *int
 	PS *GetStruct
 	PA []*int
 
+	AU []Interface
+	AV []interface{}
+
 	MI map[string]int
 	MS map[string]GetStruct
 	MA map[string][]int
 	MM map[string]map[string]int
+	MU map[string]Interface
+	MV map[string]interface{}
 
 	MPI map[string]*int
 	MPS map[string]*GetStruct
@@ -35,6 +42,10 @@ func TestSet(t *testing.T) {
 	setInt(t, "s0", "I", s0, 10)
 	setInt(t, "s0", "I", s0, 10)
 	setInt(t, "s0", "S.A", s0, 10)
+	setInt(t, "s0", "U", s0, new(GetStruct))
+	setInt(t, "s0", "U.A", s0, 10)
+	setInt(t, "s0", "V", s0, new(GetStruct))
+	setInt(t, "s0", "V.A", s0, 10)
 	for i := 0; i < n; i++ {
 		setInt(t, "s0", fmt.Sprintf("A.%d", i), s0, 10)
 		setInt(t, "s0", fmt.Sprintf("A.%d", i), s0, 11)
@@ -47,6 +58,13 @@ func TestSet(t *testing.T) {
 	for i := 0; i < n; i++ {
 		setInt(t, "s0", fmt.Sprintf("PA.%d", i), s0, intPtr(10))
 		setInt(t, "s0", fmt.Sprintf("PA.%d", i), s0, intPtr(11))
+	}
+
+	for i := 0; i < n; i++ {
+		setInt(t, "s0", fmt.Sprintf("AU.%d", i), s0, new(GetStruct))
+		setInt(t, "s0", fmt.Sprintf("AU.%d.A", i), s0, 10)
+		setInt(t, "s0", fmt.Sprintf("AV.%d", i), s0, new(GetStruct))
+		setInt(t, "s0", fmt.Sprintf("AV.%d.A", i), s0, 10)
 	}
 
 	setInt(t, "s0", "MI.X", s0, 14)
@@ -69,6 +87,11 @@ func TestSet(t *testing.T) {
 	setInt(t, "s0", "MM.X.Z", s0, 14)
 	setInt(t, "s0", "MM.X.Z", s0, 14)
 	setInt(t, "s0", "MM.Y.Z", s0, 14)
+
+	setInt(t, "s0", "MU.X", s0, new(GetStruct))
+	setInt(t, "s0", "MU.X.A", s0, 10)
+	setInt(t, "s0", "MV.X", s0, new(GetStruct))
+	setInt(t, "s0", "MV.X.A", s0, 10)
 
 	setInt(t, "s0", "MPI.X", s0, intPtr(17))
 	setInt(t, "s0", "MPI.X", s0, intPtr(18))

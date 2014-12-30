@@ -37,7 +37,9 @@ func set(path P, ctx *Context, value reflect.Value) error {
 	obj := ctx.Value()
 
 	if value.Type() != obj.Type() {
-		return ErrInvalidType
+		if obj.Kind() != reflect.Interface || !value.Type().Implements(obj.Type()) {
+			return ErrInvalidType
+		}
 	}
 
 	if obj.CanSet() {

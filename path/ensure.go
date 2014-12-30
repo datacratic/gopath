@@ -22,15 +22,16 @@ func ensure(head, tail P, obj reflect.Value, ctx *Context) error {
 	}
 
 	// If we're at the end of the path then a nil value is not invalid.
-	if !ctx.CreateIfMissing {
-		if len(tail) > 0 {
-			return ErrMissing
-		}
+	if len(tail) == 0 {
 		return nil
 	}
 
+	if !ctx.CreateIfMissing {
+		return ErrMissing
+	}
+
 	if !obj.CanSet() {
-		return fmt.Errorf("unable to set '%s' at '%s'", obj, head)
+		return fmt.Errorf("unable to ensure '%s' at '%s'", obj, head)
 	}
 
 	switch obj.Kind() {
@@ -48,7 +49,7 @@ func ensure(head, tail P, obj reflect.Value, ctx *Context) error {
 		obj.Set(reflect.MakeChan(obj.Type(), 1))
 
 	case reflect.Interface:
-		return fmt.Errorf("unable to create interface '%s' at '%s'", obj, head)
+		obj.Set(reflect.Zero(obj.Type()))
 
 	default:
 		return fmt.Errorf("unable to create '%s' at '%s'", obj, head)
@@ -72,7 +73,10 @@ func zero(head P, mid string, typ reflect.Type) (value reflect.Value, err error)
 	case reflect.Chan:
 		value = reflect.MakeChan(typ, 1)
 
-	case reflect.Interface, reflect.UnsafePointer, reflect.Func, reflect.Invalid:
+	case reflect.Interface, reflect.UnsafePointer:
+		value = reflect.Zero(typ)
+
+	case reflect.Func, reflect.Invalid:
 		err = fmt.Errorf("unable to create '%s' at '%s'", typ, append(head, mid))
 
 	default:
