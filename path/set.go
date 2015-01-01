@@ -56,7 +56,10 @@ func set(path P, ctx *Context, value reflect.Value) error {
 	}
 
 	if value.Type() != obj.Type() {
-		if obj.Kind() != reflect.Interface || !value.Type().Implements(obj.Type()) {
+		if value.Type().ConvertibleTo(obj.Type()) {
+			value = value.Convert(obj.Type())
+
+		} else if obj.Kind() != reflect.Interface || !value.Type().Implements(obj.Type()) {
 			return ErrInvalidType
 		}
 	}
