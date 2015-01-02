@@ -151,11 +151,12 @@ func TestSet(t *testing.T) {
 	New("MF.X").Set(s0, fn)
 	setObjFn(t, "s0", "MF.X", s0, 26)
 
-	// setChan(t, "s0", "C", s0, 30)
-	// setChan(t, "s0", "C", s0, 31)
-	// setChan(t, "s0", "MC.X", s0, 32)
-	// setChan(t, "s0", "MC.X", s0, 33)
-	// setChan(t, "s0", "MC.Y", s0, 33)
+	s0.C = make(chan int, 1)
+	setChan(t, "s0", "C", s0, 30)
+	setChan(t, "s0", "C", s0, 31)
+	setChan(t, "s0", "MC.X", s0, 32)
+	setChan(t, "s0", "MC.X", s0, 33)
+	setChan(t, "s0", "MC.Y", s0, 33)
 }
 
 func intPtr(i int) *int {
