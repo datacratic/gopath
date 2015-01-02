@@ -39,7 +39,7 @@ type SetStruct struct {
 }
 
 func (s *SetStruct) Fn(i int) {
-	s.I = 1
+	s.I = i
 }
 
 func (s *SetStruct) FnErr(i int) error {
@@ -137,23 +137,19 @@ func TestSet(t *testing.T) {
 	setObj(t, "s0", "MPS.X.A", s0, 18)
 	setObj(t, "s0", "MPS.Y.A", s0, 19)
 
-	// \todo Setting on a chan or func will require some rework because both ops
-	// conflict with the get operations and I'm not sure how to elegantly
-	// distinguish between the two ops.
+	setObjFn(t, "s0", "Fn", s0, 20)
+	setFail(t, "s0", "FnErr", s0, 21)
+	setObjFn(t, "s0", "FnNilErr", s0, 22)
 
-	// setObjFn(t, "s0", "Fn", s0, 20)
-	// setFail(t, "s0", "FnErr", s0, 21)
-	// setObjFn(t, "s0", "FnNilErr", s0, 22)
+	fn := func(i int) { s0.I = i }
 
-	// fn := func(i int) { s0.I = i }
+	setFail(t, "s0", "F", s0, 23)
+	New("F").Set(s0, fn)
+	setObjFn(t, "s0", "F", s0, 24)
 
-	// setFail(t, "s0", "F", s0, 23)
-	// setObj(t, "s0", "F", s0, fn)
-	// setObjFn(t, "s0", "F", s0, 24)
-
-	// setFail(t, "s0", "MF.X", s0, 25)
-	// setObj(t, "s0", "MF.X", s0, fn)
-	// setObj(t, "s0", "MF.X", s0, 26)
+	setFail(t, "s0", "MF.X", s0, 25)
+	New("MF.X").Set(s0, fn)
+	setObjFn(t, "s0", "MF.X", s0, 26)
 
 	// setChan(t, "s0", "C", s0, 30)
 	// setChan(t, "s0", "C", s0, 31)

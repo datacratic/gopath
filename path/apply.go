@@ -59,35 +59,25 @@ func apply(obj reflect.Value, head, tail P, ctx *Context) (err error) {
 func applyToPtr(obj reflect.Value, head, tail P, ctx *Context) error {
 
 	if result := obj.MethodByName(tail[0]); result.Kind() != reflect.Invalid {
-		return applyToFunc(result, head, tail[0], tail[1:], ctx)
+		return apply(result, append(head, tail[0]), tail[1:], ctx)
 	}
 
 	return apply(obj.Elem(), head, tail, ctx)
 }
 
 func applyToFunc(obj reflect.Value, head P, mid string, tail P, ctx *Context) error {
-	typ := obj.Type()
-
-	if typ.NumIn() != 0 {
-		return fmt.Errorf("too many arguments %d > 0 for function '%s' at '%s'", typ.NumIn(), mid, head)
+	if mid != "()" {
+		return fmt.Errorf("missing required '()' pathing component at '%s'", head)
 	}
 
-	var result reflect.Value
-
-	if typ.NumOut() == 1 {
-		result = obj.Call([]reflect.Value{})[0]
-
-	} else if typ.NumOut() == 2 && typ.Out(1) == reflect.TypeOf((*error)(nil)).Elem() {
-		ret := obj.Call([]reflect.Value{})
-
-		if !ret[1].IsNil() {
-			return ret[1].Interface().(error)
-		}
-
-		result = ret[0]
-
-	} else {
+	if !isGetter(obj) {
 		return fmt.Errorf("invalid return signature for function '%s' at '%s'", mid, head)
+	}
+
+	result, err := callGetter(obj)
+
+	if err != nil {
+		return err
 	}
 
 	return apply(result, append(head, mid), tail, ctx)

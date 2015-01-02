@@ -73,10 +73,10 @@ func zero(head P, mid string, typ reflect.Type) (value reflect.Value, err error)
 	case reflect.Chan:
 		value = reflect.MakeChan(typ, 1)
 
-	case reflect.Interface, reflect.UnsafePointer:
+	case reflect.Func, reflect.Interface, reflect.UnsafePointer:
 		value = reflect.Zero(typ)
 
-	case reflect.Func, reflect.Invalid:
+	case reflect.Invalid:
 		err = fmt.Errorf("unable to create '%s' at '%s'", typ, append(head, mid))
 
 	default:

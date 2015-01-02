@@ -12,7 +12,7 @@ import (
 // slice indexes should be specified using non-negative numbers. Only map keyed
 // with string are currently supported. Channels can be read by providing either
 // a number of values to read or a wildcard character to read all values until
-// the channel is closed.
+// the channel is closed. To call through a function, specify the '()'.
 type P []string
 
 // New returns a new P object from a given path string.

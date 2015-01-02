@@ -58,22 +58,22 @@ func TestGet(t *testing.T) {
 	getInt(t, "struct", "A", structVal, 100)
 	getAllInt(t, "struct", "*", structVal, []int{100, 1000})
 	getFail(t, "struct", "B", structVal)
-	getFail(t, "struct", "C", structVal)
+	getFail(t, "struct", "C.()", structVal)
 	getFail(t, "struct", "D", structVal)
-	getFail(t, "struct", "A.B", structVal)
+	getFail(t, "struct", "A.B.()", structVal)
 
 	getInt(t, "structPtr", "A", &structVal, 100)
-	getInt(t, "structPtr", "B", &structVal, 100)
-	getInt(t, "structPtr", "C", &structVal, 100)
+	getInt(t, "structPtr", "B.()", &structVal, 100)
+	getInt(t, "structPtr", "C.()", &structVal, 100)
 	getAllInt(t, "structPtr", "*", &structVal, []int{100, 1000})
-	getFail(t, "structPtr", "C", &GetStruct{0, 0})
+	getFail(t, "structPtr", "C.()", &GetStruct{0, 0})
 	getFail(t, "structPtr", "D", &structVal)
 	getMissing(t, "structPtr", "A", (*GetStruct)(nil))
-	getFail(t, "struct", "A.B", structVal)
+	getFail(t, "struct", "A.B.()", structVal)
 
 	var interfaceVal Interface
 	interfaceVal = &GetStruct{10, 100}
-	getInt(t, "interface", "B", interfaceVal, 10)
+	getInt(t, "interface", "B.()", interfaceVal, 10)
 	getAllInt(t, "interface", "*", interfaceVal, []int{10, 100})
 
 	compound := map[string][]*GetStruct{
@@ -84,7 +84,7 @@ func TestGet(t *testing.T) {
 
 	getInt(t, "compound", "X.0.A", compound, 1)
 	getInt(t, "compound", "Y.1.A", compound, 20)
-	getInt(t, "compound", "Z.2.B", compound, 300)
+	getInt(t, "compound", "Z.2.B.()", compound, 300)
 	getAllInt(t, "compound", "Y.*.A", compound, []int{2, 20})
 	getAllInt(t, "compound", "*.0.A", compound, []int{1, 2, 3})
 	getAllInt(t, "compound", "*.*.A", compound, []int{1, 2, 3, 20, 30, 300})

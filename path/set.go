@@ -33,8 +33,6 @@ func (path P) SetAll(obj, value interface{}) (err error) {
 	return path.Apply(obj, &Context{CreateIfMissing: true, Fn: fn})
 }
 
-var errorType = reflect.TypeOf((*error)(nil)).Elem()
-
 func set(path P, ctx *Context, value reflect.Value) error {
 	obj := ctx.Value()
 
@@ -45,14 +43,8 @@ func set(path P, ctx *Context, value reflect.Value) error {
 		}
 	}
 
-	if obj.Kind() == reflect.Func {
-		if fn := obj.Type(); fn.NumIn() == 1 && fn.In(0) == value.Type() {
-			if fn.NumOut() == 0 || (fn.NumOut() == 1 && fn.Out(0) == errorType) {
-				if ret := obj.Call([]reflect.Value{value}); len(ret) > 0 {
-					return ret[0].Interface().(error)
-				}
-			}
-		}
+	if isSetterFor(obj, value) {
+		return callSetter(obj, value)
 	}
 
 	if value.Type() != obj.Type() {
