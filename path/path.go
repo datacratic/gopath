@@ -4,6 +4,7 @@ package path
 
 import (
 	"bytes"
+	"fmt"
 	"strings"
 )
 
@@ -18,6 +19,12 @@ type P []string
 // New returns a new P object from a given path string.
 func New(path string) P {
 	return strings.Split(path, ".")
+}
+
+// Newf returns a new P object from the given format strings applied to
+// args. Formatting is done using fmt.Sprintf.
+func Newf(path string, args ...interface{}) P {
+	return New(fmt.Sprintf(path, args...))
 }
 
 // String returns a simple string representation of the path.

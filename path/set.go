@@ -47,13 +47,12 @@ func set(path P, ctx *Context, value reflect.Value) error {
 		return callSetter(obj, value)
 	}
 
-	if value.Type() != obj.Type() {
-		if value.Type().ConvertibleTo(obj.Type()) {
-			value = value.Convert(obj.Type())
+	if value.Type().ConvertibleTo(obj.Type()) {
+		value = value.Convert(obj.Type())
+	}
 
-		} else if obj.Kind() != reflect.Interface || !value.Type().Implements(obj.Type()) {
-			return ErrInvalidType
-		}
+	if !value.Type().AssignableTo(obj.Type()) {
+		return ErrInvalidType
 	}
 
 	if obj.CanSet() {
