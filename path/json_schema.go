@@ -7,15 +7,13 @@ import (
 	"strings"
 )
 
-func JsonSchema(t interface{}) string {
-	typ := reflect.TypeOf(t)
-
+func JsonSchema(typ reflect.Type) string {
 	mp := map[string]interface{}{}
 	js := jsonSchema(typ, mp)
-	if j, err := json.Marshal(js); err != nil {
+	if j, err := json.MarshalIndent(js, "", "    "); err != nil {
 		return fmt.Sprint(err)
 	} else {
-		return string(j)
+		return strings.Replace(string(j), "\\n", "\n", -1)
 	}
 }
 
@@ -37,22 +35,18 @@ func jsonSchema(typ reflect.Type, mp map[string]interface{}) interface{} {
 
 			mp[name] = jsonSchema(field.Type, map[string]interface{}{})
 		}
+
 	case reflect.Ptr:
-		return "*" + typ.Elem().Kind().String()
+		return jsonSchema(typ.Elem(), map[string]interface{}{})
+
 	case reflect.Slice:
-		js := jsonSchema(typ.Elem(), map[string]interface{}{})
-		if j, err := json.Marshal(js); err != nil {
-			return err
-		} else {
-			return "[]" + strings.Replace(string(j), "\"", "", -1)
-		}
+		return []interface{}{jsonSchema(typ.Elem(), map[string]interface{}{})}
+
 	case reflect.Map:
-		js := jsonSchema(typ.Elem(), map[string]interface{}{})
-		if j, err := json.Marshal(js); err != nil {
-			return err
-		} else {
-			return "map[" + typ.Key().Kind().String() + "]" + strings.Replace(string(j), "\"", "", -1)
-		}
+		m := map[string]interface{}{}
+		m[typ.Key().String()] = jsonSchema(typ.Elem(), map[string]interface{}{})
+		return m
+
 	default:
 		return typ.Kind().String()
 	}
