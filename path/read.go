@@ -46,8 +46,15 @@ func (path P) Read(obj, dest interface{}) (err error) {
 // ReadAll appends to the given dest slice to content of the path applied to the
 // given obj object. Returns ErrInvalidType if the type of the value can't be
 // converted or assigned to the member of dest. Panics if dest is not a slice.
-func (path P) ReadAll(obj, dest interface{}) (interface{}, error) {
+func (path P) ReadAll(obj, dest interface{}) error {
 	value := reflect.ValueOf(dest)
+
+	if value.Kind() == reflect.Ptr {
+		value = reflect.Indirect(value)
+	}
+	if !value.CanSet() {
+		panic("dest must be setable")
+	}
 
 	if value.Kind() != reflect.Slice {
 		panic("can only read slice values")
@@ -64,7 +71,7 @@ func (path P) ReadAll(obj, dest interface{}) (interface{}, error) {
 			}
 
 			if result.Type().AssignableTo(elem) {
-				value = reflect.Append(value, result)
+				value.Set(reflect.Append(value, result))
 				return true, nil
 			}
 
@@ -75,5 +82,5 @@ func (path P) ReadAll(obj, dest interface{}) (interface{}, error) {
 
 	}
 
-	return value, path.Apply(obj, &Context{Fn: fn})
+	return path.Apply(obj, &Context{Fn: fn})
 }
