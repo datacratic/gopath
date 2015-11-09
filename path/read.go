@@ -24,6 +24,14 @@ func (path P) Read(obj, dest interface{}) (err error) {
 
 		for result := ctx.Value(); ; result = result.Elem() {
 
+			switch result.Kind() {
+			case reflect.Interface, reflect.Ptr, reflect.Slice,
+				reflect.Map, reflect.Chan, reflect.Func:
+				if result.IsNil() {
+					return false, ErrNil
+				}
+			}
+
 			if result.Type().ConvertibleTo(value.Type()) {
 				result = result.Convert(value.Type())
 			}

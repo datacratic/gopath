@@ -13,3 +13,6 @@ var ErrMissing = errors.New("unable to path through the object")
 // ErrInvalidType indicates that the type of the value to be written did not
 // match the destination's type.
 var ErrInvalidType = errors.New("type mismatch")
+
+// ErrNil indicates that value is nil
+var ErrNil = errors.New("value is nil")
